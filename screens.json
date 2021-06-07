@@ -1,0 +1,34 @@
+{
+  "totalWidth": 328,
+  "totalHeight": 162,
+  "screens": [
+    {
+      "id": 1,
+      "x": 0,
+      "y": 0,
+      "width": 164,
+      "height": 81
+    },
+    {
+      "id": 2,
+      "x": 164,
+      "y": 0,
+      "width": 164,
+      "height": 81
+    },
+    {
+      "id": 3,
+      "x": 0,
+      "y": 81,
+      "width": 164,
+      "height": 81
+    },
+    {
+      "id": 4,
+      "x": 164,
+      "y": 81,
+      "width": 164,
+      "height": 81
+    }
+  ]
+}
