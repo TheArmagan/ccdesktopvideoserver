@@ -64,27 +64,27 @@ app.get("/code.lua", async (req, res) => {
 });
 
 
-console.log(`ComputerCraft Desktop Video Server by Kıraç Armağan Önal`);
+console.log(`| ComputerCraft Desktop Video Server by Kıraç Armağan Önal`);
 app.listen(5852, () => {
-  console.log(`Listening on 5852.\n`);
+  console.log(`| Listening on port 5852.\n`);
   screens.forEach((screen) => {
-    console.log(`/ Screen ${screen.id} ready!`);
-    console.log(`| http://127.0.0.1:5852/code.lua?id=${screen.id}`);
-    console.log(`| http://127.0.0.1:5852/data.txt?id=${screen.id}`);
+    console.log(`| Screen ${screen.id} ready!`);
+    console.log(`| wget run http://127.0.0.1:5852/code.lua?id=${screen.id}`);
   });
+
 });
 
 require("last-words")(async (isNode) => {
   if (isNode) return;
-  console.log("\nStopping frame renderer..")
+  console.log("\n| Stopping frame renderer..")
   clearInterval(frameInterval);
   await stuffs.sleep(100);
-  console.log("Clearing temp frames..")
+  console.log("| Clearing temp frames..")
   let files = fs.readdirSync(process.env.TEMP).filter(i => i.endsWith("png"));
   files.forEach(file => {
     file = path.resolve(process.env.TEMP, file);
   });
-  console.log(`Cleared ${files.length} temp frames..`)
-  console.log("Exiting goodbye..")
+  console.log(`| Cleared ${files.length} temp frames..`)
+  console.log("| Exiting goodbye..")
   process.exit(0);
 })
