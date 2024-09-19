@@ -30,7 +30,7 @@ let frameInterval = setInterval(async () => {
   let ss = await screenToBuffer();
   const resizedImg = await sharp(ss).resize(config.inGameScreens.totalWidth, config.inGameScreens.totalHeight, {
     fit: "fill"
-  }).toBuffer()
+  }).toBuffer();
 
   config.inGameScreens.screens.forEach(async (screen) => {
     let img = await sharp(resizedImg).extract({ left: screen.x, top: screen.y, width: screen.width, height: screen.height }).toBuffer();

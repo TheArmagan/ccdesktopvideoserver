@@ -1,7 +1,7 @@
 {
   "screenshot": {
     "threads": 1,
-    "screenIndex": 1,
+    "screenIndex": 0,
     "scale": 0.5,
     "dither": 0,
     "frameRate": 5
