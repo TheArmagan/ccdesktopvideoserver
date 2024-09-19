@@ -1,21 +1,21 @@
 {
   "screenshot": {
-    "threads": 2,
+    "threads": 1,
     "screenIndex": 1,
     "scale": 0.25,
     "dither": 0,
     "frameRate": 5
   },
   "inGameScreens": {
-    "totalWidth": 527,
-    "totalHeight": 223,
+    "totalWidth": 676,
+    "totalHeight": 252,
     "screens": [
       {
         "id": 1,
         "x": 0,
         "y": 0,
-        "width": 527,
-        "height": 223
+        "width": 676,
+        "height": 252
       }
     ]
   }
