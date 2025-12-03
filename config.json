@@ -3,19 +3,19 @@
     "threads": 1,
     "screenIndex": 0,
     "scale": 0.5,
-    "dither": 0,
+    "dither": 8,
     "frameRate": 5
   },
   "inGameScreens": {
-    "totalWidth": 676,
-    "totalHeight": 252,
+    "totalWidth": 207,
+    "totalHeight": 81,
     "screens": [
       {
         "id": 1,
         "x": 0,
         "y": 0,
-        "width": 676,
-        "height": 252
+        "width": 207,
+        "height": 81
       }
     ]
   }
