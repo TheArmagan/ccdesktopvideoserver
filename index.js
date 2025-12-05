@@ -182,42 +182,6 @@ function startAudioCapture() {
     return;
   }
 
-  // FFmpeg command to capture desktop audio via WASAPI loopback
-  // Output: 48kHz, mono, signed 8-bit PCM (range -128 to 127)
-  const ffmpegArgs = [
-    "-f", "dshow",
-    "-i", "audio=virtual-audio-capturer", // Try virtual audio capturer first
-    "-ac", "1",                            // Mono
-    "-ar", "48000",                        // 48kHz sample rate
-    "-acodec", "pcm_s8",                   // Signed 8-bit PCM
-    "-f", "s8",                            // Raw signed 8-bit output
-    "-"                                    // Output to stdout
-  ];
-
-  // Alternative: use WASAPI loopback directly
-  const ffmpegArgsWasapi = [
-    "-f", "dshow",
-    "-audio_buffer_size", "50",
-    "-i", `audio=@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\\wave_{${getDefaultAudioDeviceGuid()}}`,
-    "-ac", "1",
-    "-ar", "48000",
-    "-acodec", "pcm_s8",
-    "-f", "s8",
-    "-"
-  ];
-
-  // Try with stereo mix or default audio device
-  const ffmpegArgsDefault = [
-    "-f", "lavfi",
-    "-i", "anullsrc=r=48000:cl=mono",      // Fallback silent source
-    "-t", "0.1",
-    "-ac", "1",
-    "-ar", "48000",
-    "-acodec", "pcm_s8",
-    "-f", "s8",
-    "-"
-  ];
-
   console.log("| Starting audio capture...");
 
   // First try to list audio devices
