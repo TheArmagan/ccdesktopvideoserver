@@ -6,6 +6,12 @@
     "dither": 10,
     "frameRate": 10
   },
+  "audio": {
+    "enabled": true,
+    "device": "Voicemeeter Out B2 (VB-Audio Voicemeeter VAIO)",
+    "bufferSize": 16384,
+    "volume": 1.0
+  },
   "inGameScreens": {
     "totalWidth": 271,
     "totalHeight": 95,

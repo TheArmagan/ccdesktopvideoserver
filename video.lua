@@ -1,11 +1,16 @@
+-- CC Desktop Video Player
+-- Streams desktop video from the server to a CC:Tweaked monitor
+-- For audio, run audio.lua on a separate computer with a speaker
+
 -- Localize frequently used functions for better performance
 local string_gmatch = string.gmatch
-local string_gsub = string.gsub
 local string_sub = string.sub
 local string_rep = string.rep
-local table_insert = table.insert
 local table_remove = table.remove
 local tonumber = tonumber
+
+-- Configuration
+local BASE_URL = "{{base}}"
 
 function split(inputString, separateWith)
     if separateWith == nil then
@@ -13,14 +18,13 @@ function split(inputString, separateWith)
     end
     local t = {}
     for str in string_gmatch(inputString, "([^" .. separateWith .. "]+)") do
-        t[#t + 1] = str -- Faster than table.insert
+        t[#t + 1] = str
     end
     return t
 end
 
 -- Convert hex color string to RGB values (0-1 range)
 local function hexToRGB(hex)
-    -- Skip the # character directly with substr instead of gsub
     local r = tonumber(string_sub(hex, 2, 3), 16) / 255
     local g = tonumber(string_sub(hex, 4, 5), 16) / 255
     local b = tonumber(string_sub(hex, 6, 7), 16) / 255
@@ -48,6 +52,12 @@ local ccColors = {
 }
 
 local m = peripheral.wrap("{{direction}}")
+if not m then
+    print("Error: No monitor found!")
+    print("Make sure a monitor is connected on the '{{direction}}' side")
+    return
+end
+
 m.setTextScale(0.5)
 
 -- Cache monitor methods for faster access
@@ -56,7 +66,13 @@ local m_setCursorPos = m.setCursorPos
 local m_clear = m.clear
 local m_blit = m.blit
 
-print(m.getSize())
+local width, height = m.getSize()
+print("CC Desktop Video Player")
+print("Monitor: " .. width .. "x" .. height)
+print("Connecting to: " .. BASE_URL)
+print("")
+print("For audio, run audio.lua on another computer")
+print("Press Ctrl+T to stop")
 
 local lastData = ""
 local lastPalette = ""
@@ -66,7 +82,7 @@ local fCache = {}
 local spaceCache = {}
 
 while true do
-    local infoReq = http.get("{{base}}/data.txt?id={{id}}")
+    local infoReq = http.get(BASE_URL .. "/data.txt?id={{id}}")
     if infoReq ~= nil then
         local data = infoReq.readAll()
         infoReq.close()
@@ -124,5 +140,5 @@ while true do
         end
     end
 
-    sleep(0.05) -- Faster polling (20 FPS instead of 10 FPS)
+    sleep(0.05)
 end
