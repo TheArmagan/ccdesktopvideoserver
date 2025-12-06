@@ -301,11 +301,6 @@ async function listAudioDevices() {
   }
 }
 
-function getDefaultAudioDeviceGuid() {
-  // This is a placeholder - in practice we use device names
-  return "00000000-0000-0000-0000-000000000000";
-}
-
 // Audio endpoint - returns PCM audio as comma-separated signed integers
 // This avoids binary encoding issues with CC:Tweaked HTTP
 app.get("/audio.pcm", (req, res) => {
