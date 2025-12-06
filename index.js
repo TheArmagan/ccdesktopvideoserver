@@ -12,10 +12,16 @@ const sharp = require("sharp");
 const config = require("./config.json");
 
 // Audio capture state
-let audioBuffer = Buffer.alloc(0);
 let audioProcess = null;
 const AUDIO_SAMPLE_RATE = 48000;
-const AUDIO_CHUNK_SIZE = config.audio?.bufferSize || 16384; // 16KB chunks for CC:Tweaked (16 * 1024)
+const AUDIO_CHUNK_SIZE = config.audio?.bufferSize || 4096;
+
+// Ring buffer for multi-reader audio streaming
+// Keeps ~0.5 seconds of audio for low latency, clients track their own read position
+const AUDIO_RING_SIZE = Math.floor(AUDIO_SAMPLE_RATE * 0.5); // 0.5 seconds @ 48kHz
+let audioRingBuffer = Buffer.alloc(AUDIO_RING_SIZE);
+let audioWritePos = 0;      // Where new audio is written
+let audioSequence = 0;      // Increments with each sample written (global position)
 
 // Color keys for the 16 available slots (0-9, a-f)
 const COLOR_KEYS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
@@ -207,7 +213,7 @@ function startAudioCapture() {
 
     const args = [
       "-f", "dshow",
-      "-audio_buffer_size", "50",
+      "-audio_buffer_size", "20",
       "-i", `audio=${audioDevice}`,
       "-ac", "1",
       "-ar", "48000",
@@ -224,23 +230,19 @@ function startAudioCapture() {
       // Apply volume adjustment
       // Audio is unsigned 8-bit (0-255), centered at 128
       const volume = config.audio?.volume || 1.0;
-      if (volume !== 1.0) {
-        const adjusted = Buffer.alloc(data.length);
-        for (let i = 0; i < data.length; i++) {
-          // Convert to signed (-128 to 127), apply volume, convert back to unsigned
-          let sample = data[i] - 128;
-          sample = Math.max(-128, Math.min(127, Math.round(sample * volume)));
-          adjusted[i] = sample + 128;
-        }
-        audioBuffer = Buffer.concat([audioBuffer, adjusted]);
-      } else {
-        audioBuffer = Buffer.concat([audioBuffer, data]);
-      }
 
-      // Keep buffer size manageable (max 1 second of audio = 48000 bytes)
-      const maxBufferSize = AUDIO_SAMPLE_RATE;
-      if (audioBuffer.length > maxBufferSize) {
-        audioBuffer = audioBuffer.slice(audioBuffer.length - maxBufferSize);
+      for (let i = 0; i < data.length; i++) {
+        let sample = data[i];
+        if (volume !== 1.0) {
+          // Convert to signed (-128 to 127), apply volume, convert back to unsigned
+          let signed = sample - 128;
+          signed = Math.max(-128, Math.min(127, Math.round(signed * volume)));
+          sample = signed + 128;
+        }
+        // Write to ring buffer
+        audioRingBuffer[audioWritePos] = sample;
+        audioWritePos = (audioWritePos + 1) % AUDIO_RING_SIZE;
+        audioSequence++;
       }
     });
 
@@ -302,7 +304,8 @@ async function listAudioDevices() {
 }
 
 // Audio endpoint - returns PCM audio as comma-separated signed integers
-// This avoids binary encoding issues with CC:Tweaked HTTP
+// Supports multiple readers via sequence number tracking
+// Client sends ?seq=N to get audio after sequence N, response includes new seq
 app.get("/audio.pcm", (req, res) => {
   if (!config.audio?.enabled) {
     res.status(503).send("Audio disabled");
@@ -310,36 +313,45 @@ app.get("/audio.pcm", (req, res) => {
   }
 
   const chunkSize = parseInt(req.query.size) || AUDIO_CHUNK_SIZE;
+  let clientSeq = parseInt(req.query.seq) || 0;
 
-  if (audioBuffer.length >= chunkSize) {
-    // Get chunk and remove it from buffer
-    const chunk = audioBuffer.slice(0, chunkSize);
-    audioBuffer = audioBuffer.slice(chunkSize);
-
-    // Convert to signed values (-128 to 127) as comma-separated string
-    const samples = [];
-    for (let i = 0; i < chunk.length; i++) {
-      samples.push(chunk[i] - 128); // Convert unsigned to signed
-    }
-
-    res.type("text/plain");
-    res.send(samples.join(","));
-  } else if (audioBuffer.length > 0) {
-    // Send what we have
-    const chunk = audioBuffer;
-    audioBuffer = Buffer.alloc(0);
-
-    const samples = [];
-    for (let i = 0; i < chunk.length; i++) {
-      samples.push(chunk[i] - 128);
-    }
-
-    res.type("text/plain");
-    res.send(samples.join(","));
-  } else {
-    // No audio available
-    res.status(204).send();
+  // If client is too far behind (more than ring buffer size), jump to current
+  if (clientSeq < audioSequence - AUDIO_RING_SIZE) {
+    clientSeq = audioSequence - AUDIO_RING_SIZE + chunkSize;
   }
+
+  // If client is ahead or at current position, no new data
+  if (clientSeq >= audioSequence) {
+    res.status(204).send();
+    return;
+  }
+
+  // Calculate how many samples are available
+  const available = audioSequence - clientSeq;
+  const toRead = Math.min(available, chunkSize);
+
+  if (toRead <= 0) {
+    res.status(204).send();
+    return;
+  }
+
+  // Calculate read position in ring buffer
+  // clientSeq maps to a position in the ring buffer
+  let readPos = (audioWritePos - (audioSequence - clientSeq) + AUDIO_RING_SIZE) % AUDIO_RING_SIZE;
+
+  // Read samples from ring buffer
+  const samples = [];
+  for (let i = 0; i < toRead; i++) {
+    const sample = audioRingBuffer[readPos] - 128; // Convert to signed
+    samples.push(sample);
+    readPos = (readPos + 1) % AUDIO_RING_SIZE;
+  }
+
+  const newSeq = clientSeq + toRead;
+
+  res.type("text/plain");
+  // First line is the new sequence number, second line is samples
+  res.send(newSeq + "\n" + samples.join(","));
 });
 
 // Audio info endpoint
@@ -350,7 +362,8 @@ app.get("/audio/info", (req, res) => {
     channels: 1,
     bitDepth: 8,
     signed: true,
-    bufferSize: audioBuffer.length,
+    ringBufferSize: AUDIO_RING_SIZE,
+    currentSequence: audioSequence,
     chunkSize: AUDIO_CHUNK_SIZE
   });
 });
@@ -361,14 +374,16 @@ app.listen(8000, () => {
   console.log(`| Listening on port 8000.\n`);
 
   // Video screens
-  config.inGameScreens.screens.forEach((screen) => {
-    console.log(`| Screen ${screen.id} ready!`);
-    console.log(`|   Video: wget run http://127.0.0.1:8000/video.lua?id=${screen.id}`);
-  });
+  if (config.screenshot.enabled) {
+    config.inGameScreens.screens.forEach((screen) => {
+      console.log(`| Screen ${screen.id} ready!`);
+      console.log(`|   Video: wget run http://127.0.0.1:8000/video.lua?id=${screen.id}`);
+    });
+    console.log(`|`);
+  }
 
   // Audio
   if (config.audio?.enabled) {
-    console.log(`|`);
     console.log(`| Audio ready!`);
     console.log(`|   Audio: wget run http://127.0.0.1:8000/audio.lua`);
     startAudioCapture();

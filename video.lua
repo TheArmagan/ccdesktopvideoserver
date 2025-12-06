@@ -77,13 +77,24 @@ print("Press Ctrl+T to stop")
 local lastData = ""
 local lastPalette = ""
 
+-- Connection state
+local connected = false
+local retryCount = 0
+local MAX_RETRY_DELAY = 5
+
 -- Pre-compute "f" strings for common widths (cache)
 local fCache = {}
 local spaceCache = {}
 
 while true do
-    local infoReq = http.get(BASE_URL .. "/data.txt?id={{id}}")
-    if infoReq ~= nil then
+    local ok, infoReq = pcall(http.get, BASE_URL .. "/data.txt?id={{id}}")
+    if ok and infoReq ~= nil then
+        if not connected then
+            connected = true
+            retryCount = 0
+            print("Connected to server!")
+        end
+
         local data = infoReq.readAll()
         infoReq.close()
 
@@ -138,6 +149,16 @@ while true do
                 m_blit(spaceStr, fStr, line)
             end
         end
+    else
+        -- Connection failed, retry with backoff
+        if connected then
+            connected = false
+            print("Connection lost!")
+        end
+        retryCount = retryCount + 1
+        local delay = math.min(retryCount * 0.5, MAX_RETRY_DELAY)
+        print("Retrying in " .. delay .. "s... (attempt " .. retryCount .. ")")
+        sleep(delay)
     end
 
     sleep(0.05)
