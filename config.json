@@ -4,7 +4,8 @@
     "screenIndex": 0,
     "scale": 0.5,
     "dither": 10,
-    "frameRate": 10
+    "frameRate": 10,
+    "enabled": false
   },
   "audio": {
     "enabled": true,

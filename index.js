@@ -118,6 +118,10 @@ function computeTop16Colors(jimpImg) {
 }
 
 let frameInterval = setInterval(async () => {
+  if (!config.screenshot.enabled) {
+    return;
+  }
+
   let ss = await screenToBuffer();
   const resizedImg = await sharp(ss).resize(config.inGameScreens.totalWidth, config.inGameScreens.totalHeight, {
     fit: "fill"
