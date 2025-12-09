@@ -5,7 +5,7 @@
     "scale": 0.5,
     "dither": 10,
     "frameRate": 10,
-    "enabled": false
+    "enabled": true
   },
   "audio": {
     "enabled": true,
